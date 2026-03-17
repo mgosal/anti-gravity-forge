@@ -2,8 +2,8 @@ mission:
   poll_interval: 60          # seconds between GitHub polls
   max_concurrent_forges: 3   # parallel issue limit across ALL repos
   bot:
-    name: "Mission Smith"
-    email: "mission-smith@antigravity.ai"
+    name: "ForgeMaster"
+    email: "forgemaster@antigravity.ai"
 
 repos:
   - name: "mgosal/anti-gravity-forge"   # specific repo
