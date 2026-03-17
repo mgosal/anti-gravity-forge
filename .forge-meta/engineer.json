@@ -1,32 +1,20 @@
 {
   "files_modified": [
     {
-      "path": "scripts/run-pipeline.sh",
-      "change_summary": "Added post_stage_comment helper function that posts structured GitHub issue comments after each pipeline stage (triager, engineer, test-writer, security-gate, code-reviewer, pr-assembler) with agent name, status (success/failure), and summary. Updated gate_check to also post a failure comment for the specific stage. Added post_stage_comment calls after every agent invocation and gate check, including in error paths."
-    },
-    {
-      "path": ".agents/rules/triager.md",
-      "change_summary": "Added instruction requiring the triager to include a 'stage_summary' field in its JSON output containing a brief human-readable completion summary suitable for posting as an issue comment."
-    },
-    {
-      "path": ".agents/rules/engineer.md",
-      "change_summary": "Added instruction requiring the engineer to include a 'stage_summary' field in its JSON output containing a brief human-readable completion summary suitable for posting as an issue comment."
-    },
-    {
-      "path": ".agents/rules/test-writer.md",
-      "change_summary": "Added instruction requiring the test writer to include a 'stage_summary' field in its JSON output containing a brief human-readable completion summary suitable for posting as an issue comment."
-    },
-    {
-      "path": ".agents/rules/code-reviewer.md",
-      "change_summary": "Added instruction requiring the code reviewer to include a 'stage_summary' field in its JSON output containing a brief human-readable completion summary suitable for posting as an issue comment."
-    },
-    {
-      "path": ".agents/rules/security-gate.md",
-      "change_summary": "Added instruction requiring the security gate to include a 'stage_summary' field in its JSON output containing a brief human-readable completion summary suitable for posting as an issue comment."
+      "path": ".antigravity/templates/pr-description.md",
+      "change_summary": "Changed 'Resolves #{{ISSUE_ID}}' to 'Closes #{{ISSUE_ID}}' to use the GitHub closing keyword that guarantees auto-close on merge. The 'Resolves' keyword also works, but 'Closes' is the most explicit and widely recognized. Added a blank line after the keyword for clarity."
     },
     {
       "path": ".agents/rules/pr-assembler.md",
-      "change_summary": "Added instruction requiring the PR assembler to include a 'stage_summary' field in its JSON output containing a brief human-readable completion summary suitable for posting as an issue comment."
+      "change_summary": "Updated Rule 5 from 'Resolves #<issue_id>' to 'Closes #<issue_id>' to match the updated template. Added a new Rule 9 explicitly instructing the PR assembler to always include a 'Closes #<issue_id>' line in the PR body on its own line so GitHub's auto-close detection reliably parses it. Added a note that the closing keyword must appear in the final rendered PR description (not just a comment or code block) to ensure GitHub processes it."
+    },
+    {
+      "path": "scripts/forge-create.sh",
+      "change_summary": "No functional changes needed. The script already correctly receives and propagates the ISSUE_ID variable. The issue number is available in the forge workspace via the .forge-meta directory and is consumed downstream by the pipeline agents that fill in the PR template. Reviewed and confirmed the issue number flow is intact."
+    },
+    {
+      "path": ".antigravity/config.yml",
+      "change_summary": "No changes needed. The config already specifies cleanup_after_merge: true and the branch/label conventions. There is no missing configuration for issue-to-PR linkage; the linkage is handled entirely by the PR description template and the assembler agent rules."
     }
   ],
   "files_created": [],

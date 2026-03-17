@@ -3,5 +3,5 @@
   "secrets_detected": [],
   "risky_patterns": [],
   "overall_passed": true,
-  "remediation_advice": "Empty diff provided. No changes to review. No security issues detected."
+  "remediation_advice": "No security issues detected. The diff contains only metadata/configuration changes to JSON files (engineer.json, triage.json), a pipeline log file, and references to template/rule file updates. No secrets, injection vectors, cryptographic weaknesses, or other security anti-patterns were identified. The changes are limited to updating issue-closing keywords ('Resolves' → 'Closes') and updating triage/engineer metadata to reflect a new issue. No executable code, no credentials, and no risky dependencies are introduced."
 }
