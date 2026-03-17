@@ -1,8 +1,8 @@
-# 🔧 Anti Gravity Forge
+# Anti Gravity Forge
 
-An AI-powered auto-fix pipeline that monitors GitHub for issues, resolves them through a chain of specialized agents, and submits hardened draft PRs for human review.
+An experimental auto-fix pipeline that monitors GitHub for issues, attempts to resolve them through a chain of specialized agents, and submits draft PRs for human review.
 
-Fixes are built in an isolated **Forge** — a dedicated cloned workspace per issue — where agents collaborate sequentially before any code reaches a PR.
+Fixes are built in an isolated **Forge** — a dedicated cloned workspace per issue — where agents process the code sequentially before any code reaches a PR.
 
 ---
 
@@ -327,4 +327,4 @@ anti-gravity-forge/
 
 ---
 
-*Built with Anti Gravity. PRs are always draft. Humans are the final gate.*
+*PRs are always draft. Human review is required before merging.*
