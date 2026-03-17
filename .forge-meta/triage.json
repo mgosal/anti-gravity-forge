@@ -1,0 +1,34 @@
+{
+  "issue_id": 3,
+  "issue_title": "forge to add comment at each stage of pipeline",
+  "classification": "standard",
+  "problem_statement": "The forge pipeline agents (triager, engineer, test-writer, code-reviewer, security-gate, pr-assembler) do not post GitHub issue comments after completing their respective steps. Repo owners and downstream agents lack visibility into pipeline progress. Each agent's rule file and the pipeline orchestration script need to be updated so that a comment is posted to the issue after each stage completes.",
+  "affected_files": [
+    "scripts/run-pipeline.sh",
+    ".agents/rules/triager.md",
+    ".agents/rules/engineer.md",
+    ".agents/rules/test-writer.md",
+    ".agents/rules/code-reviewer.md",
+    ".agents/rules/security-gate.md",
+    ".agents/rules/pr-assembler.md"
+  ],
+  "implementation_plan": [
+    "Step 1: In `scripts/run-pipeline.sh`, add a helper function (e.g., `post_stage_comment`) that uses `gh issue comment` to post a structured status comment to the issue after each pipeline stage completes. The comment should include the agent name, stage status (success/failure), and a brief summary.",
+    "Step 2: After each agent invocation in `scripts/run-pipeline.sh`, call the `post_stage_comment` function with the appropriate agent name, issue number, and outcome.",
+    "Step 3: Update `.agents/rules/triager.md` to include an instruction that the triager must output or signal a completion summary suitable for posting as an issue comment.",
+    "Step 4: Update `.agents/rules/engineer.md` to include an instruction that the engineer must output or signal a completion summary suitable for posting as an issue comment.",
+    "Step 5: Update `.agents/rules/test-writer.md` to include an instruction that the test writer must output or signal a completion summary suitable for posting as an issue comment.",
+    "Step 6: Update `.agents/rules/code-reviewer.md` to include an instruction that the code reviewer must output or signal a completion summary suitable for posting as an issue comment.",
+    "Step 7: Update `.agents/rules/security-gate.md` to include an instruction that the security gate must output or signal a completion summary suitable for posting as an issue comment.",
+    "Step 8: Update `.agents/rules/pr-assembler.md` to include an instruction that the PR assembler must output or signal a completion summary suitable for posting as an issue comment."
+  ],
+  "acceptance_criteria": [
+    "Each pipeline stage (triager, engineer, test-writer, code-reviewer, security-gate, pr-assembler) posts a GitHub issue comment upon completion.",
+    "Comments include the agent/stage name, completion status, and a brief summary of what was done.",
+    "Downstream agents and repo owners can see the full pipeline progress by reading the issue comments.",
+    "Pipeline continues to function correctly end-to-end after the changes.",
+    "Comments are posted even if a stage fails, indicating the failure."
+  ],
+  "actionable": true,
+  "clarification_needed": null
+}
