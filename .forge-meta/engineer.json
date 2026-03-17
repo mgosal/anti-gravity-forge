@@ -1,0 +1,17 @@
+{
+  "files_modified": [
+    {
+      "path": ".antigravity/config.yml",
+      "change_summary": "Changed agents.model from 'anthropic/claude-opus' to 'anthropic/claude-sonnet-4' and agents.provider from 'openrouter' to 'anthropic'. Added a comment noting Opus bridge remains available as an alternative. Updated the comment on the model line to indicate it uses the built-in anti gravity default."
+    },
+    {
+      "path": ".env.example",
+      "change_summary": "Replaced OPENROUTER_API_KEY with ANTHROPIC_API_KEY as the primary key. Added OPENROUTER_API_KEY as an optional override for users who want to use the Opus bridge via OpenRouter instead of the default anti gravity models."
+    }
+  ],
+  "files_created": [],
+  "files_deleted": [],
+  "scope_creep_flags": [],
+  "build_passes": true,
+  "lint_passes": true
+}

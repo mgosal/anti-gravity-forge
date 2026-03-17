@@ -1,0 +1,11 @@
+{
+  "conformance_score": 1.0,
+  "confidence_score": 0.95,
+  "review_comments": [
+    "The diff is empty — no changes were submitted for review."
+  ],
+  "suggested_improvements": [
+    "Please provide a non-empty diff so that a meaningful code review can be performed."
+  ],
+  "approval_status": "needs_work"
+}

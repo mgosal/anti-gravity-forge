@@ -1,0 +1,24 @@
+{
+  "issue_id": 1,
+  "issue_title": "Default to anti gravity models and not opus bridge",
+  "classification": "standard",
+  "problem_statement": "The project currently defaults to using the Opus bridge MCP tool for its model/provider configuration. The desired behavior is to default to the built-in anti gravity models instead. The most likely place this default is configured is in the anti-gravity config file and potentially in the environment example file.",
+  "affected_files": [
+    ".antigravity/config.yml",
+    ".env.example"
+  ],
+  "implementation_plan": [
+    "Inspect `.antigravity/config.yml` to identify where the default model/provider is set (likely a model or provider field referencing 'opus bridge' or an MCP tool configuration).",
+    "Update the default model/provider value in `.antigravity/config.yml` to reference the built-in anti gravity models instead of the Opus bridge MCP tool.",
+    "Inspect `.env.example` for any environment variables that configure the default model or provider and update them to reflect the new anti gravity model defaults if applicable.",
+    "Verify that no scripts in `scripts/` hardcode the Opus bridge as a default (review `scripts/run-pipeline.sh`, `scripts/forge-create.sh`, and `scripts/start-irontech.sh` for any model references)."
+  ],
+  "acceptance_criteria": [
+    "The default model/provider in `.antigravity/config.yml` references the built-in anti gravity models, not the Opus bridge MCP tool.",
+    "`.env.example` reflects the updated default if it contains model/provider configuration.",
+    "Running the pipeline without explicit model overrides uses the anti gravity models by default.",
+    "Opus bridge remains available as a non-default option (no removal of the capability, just a default change)."
+  ],
+  "actionable": true,
+  "clarification_needed": null
+}

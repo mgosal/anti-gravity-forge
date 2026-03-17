@@ -1,0 +1,7 @@
+{
+  "vulnerabilities_found": [],
+  "secrets_detected": [],
+  "risky_patterns": [],
+  "overall_passed": true,
+  "remediation_advice": "Empty diff provided. No changes to review. No security issues detected."
+}
