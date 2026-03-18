@@ -153,6 +153,27 @@ git remote set-url origin https://github.com/mgosal/iron-tech-forge.git
 
 ---
 
+## Secure Machine User Setup (Recommended)
+
+For production use or to strictly separate bot activity from your personal account, follow these steps to set up a **Machine User**:
+
+1.  **Create a Dedicated Bot Account**: Register a new, free GitHub account (e.g., `forge-bot-[yourname]`).
+2.  **Invite to Repos**: On GitHub, go to your repository **Settings > Collaborators** and invite the bot account with **Write** access.
+3.  **Generate a PAT**: Log in as the bot and create a **Fine-grained Personal Access Token (PAT)** with:
+    - Repository permissions: `Contents` (read/write), `Pull Requests` (read/write), `Metadata` (read-only).
+4.  **Update `.env.local`**:
+    ```bash
+    # Use the bot's PAT instead of your personal token for gh CLI
+    GH_TOKEN=github_pat_xxxxxxxxxxxx
+    
+    # Match the bot's GitHub profile
+    AG_BOT_EMAIL="bot-account-email@example.com"
+    AG_BOT_NAME="ForgeMaster Bot"
+    ```
+5.  **GitHub CLI**: If running the daemon, ensure the environment has the `GH_TOKEN` variable available so the `gh` commands use the bot's identity instead of yours.
+
+---
+
 ### Manual Run (Single Issue)
 
 ```bash
