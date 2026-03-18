@@ -273,6 +273,8 @@ Each issue gets its own cloned workspace — a **Forge**. Forges are disposable.
 
 ```
 anti-gravity-forge/
+├── .gemini/
+│   └── rules.md                       # Branching rules for manual Anti-Gravity chat sessions
 ├── .agents/
 │   ├── rules/
 │   │   ├── triager.md                 # Stage 1: classify & plan
