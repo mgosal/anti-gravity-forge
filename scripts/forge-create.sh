@@ -11,6 +11,8 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # Source .env if it exists
 if [ -f "${PROJECT_ROOT}/.env" ]; then
   export $(grep -v '^#' "${PROJECT_ROOT}/.env" | xargs)
+elif [ -f "${PROJECT_ROOT}/.env.local" ]; then
+  export $(grep -v '^#' "${PROJECT_ROOT}/.env.local" | xargs)
 fi
 
 CONFIG_FILE="${PROJECT_ROOT}/.antigravity/config.yml"
@@ -52,6 +54,7 @@ gh repo clone "$REPO" "$FORGE_DIR" -- --depth=50 2>/dev/null || {
 cd "$FORGE_DIR"
 BASE_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "main")
 git checkout -b "$BRANCH_NAME" "origin/${BASE_BRANCH}"
+git pull --rebase origin "${BASE_BRANCH}" 2>/dev/null || true
 
 mkdir -p "${FORGE_DIR}/.forge-meta"
 

@@ -94,7 +94,8 @@ while true; do
           gh issue edit "$ISSUE_ID" -R "$REPO" --add-label "$LABEL_IN_PROGRESS" --remove-label "$LABEL_TRIGGER" 2>/dev/null || true
           gh issue comment "$ISSUE_ID" -R "$REPO" --body "🔧 **Anti Gravity Forge activated.**" 2>/dev/null || true
           "${SCRIPT_DIR}/forge-create.sh" "$REPO" "$ISSUE_ID" 2>&1 | tee -a "$MISSION_LOG" || continue
-          "${SCRIPT_DIR}/run-pipeline.sh" "$REPO" "$ISSUE_ID" 2>&1 | tee -a "$MISSION_LOG" || continue
+          "${SCRIPT_DIR}/run-pipeline.sh" "$REPO" "$ISSUE_ID" 2>&1 | tee -a "$MISSION_LOG" || true
+          "${SCRIPT_DIR}/forge-cleanup.sh" "$REPO" "$ISSUE_ID" "--force" 2>&1 | tee -a "$MISSION_LOG" || true
         fi
       done
     done

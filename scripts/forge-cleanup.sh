@@ -29,6 +29,7 @@ cleanup_forge() {
   fi
 
   echo "Cleaning up forge for ${repo} issue #${issue_id}..."
+  gh issue edit "$issue_id" -R "$repo" --remove-label "ag-in-progress" 2>/dev/null || true
 
   if [ "$force" = "--force" ]; then
     rm -rf "$forge_dir"
@@ -51,10 +52,33 @@ cleanup_forge() {
 if [ $# -lt 1 ]; then
   echo "Usage: $0 <owner/repo> <issue-id> [--force]"
   echo "       $0 --all [--force]"
+  echo "       $0 --status"
   exit 1
 fi
 
-if [ "$1" = "--all" ]; then
+if [ "$1" = "--status" ]; then
+  if [ ! -d "$FORGE_BASE_DIR" ]; then
+    echo "No active forges found."
+    exit 0
+  fi
+  echo "=== Active Forge Workspaces ==="
+  for repo_dir in "${FORGE_BASE_DIR}"/*/; do
+    [ -d "$repo_dir" ] || continue
+    for issue_dir in "${repo_dir}"issue-*/; do
+      [ -d "$issue_dir" ] || continue
+      issue_id=$(basename "$issue_dir" | sed 's/issue-//')
+      if cd "$issue_dir" 2>/dev/null; then
+        repo=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "unknown")
+        labels=$(gh issue view "$issue_id" --json labels -q '.labels[].name' 2>/dev/null | xargs || echo "none")
+        echo "- ${repo} #${issue_id} (Labels: ${labels})"
+        cd - >/dev/null
+      else
+        echo "- Unknown repo #${issue_id} at ${issue_dir}"
+      fi
+    done
+  done
+  exit 0
+elif [ "$1" = "--all" ]; then
   force="${2:-false}"
   if [ ! -d "$FORGE_BASE_DIR" ]; then
     echo "No forges found."
@@ -64,6 +88,15 @@ if [ "$1" = "--all" ]; then
     [ -d "$repo_dir" ] || continue
     for issue_dir in "${repo_dir}"issue-*/; do
       [ -d "$issue_dir" ] || continue
+      issue_id=$(basename "$issue_dir" | sed 's/issue-//')
+      if cd "$issue_dir" 2>/dev/null; then
+        repo=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "")
+        cd - >/dev/null
+        if [ -n "$repo" ]; then
+          cleanup_forge "$repo" "$issue_id" "$force"
+          continue
+        fi
+      fi
       rm -rf "$issue_dir"
     done
     if [ -z "$(ls -A "$repo_dir" 2>/dev/null)" ]; then

@@ -173,9 +173,9 @@ log "--- Stage 6: PR Assembly ---"
 PR_RESPONSE=$(invoke_agent "pr-assembler" "# Context\n$(ls "${META_DIR}")")
 echo "$PR_RESPONSE" > "${META_DIR}/pr-description.md"
 
-# Get bot identity from config
-BOT_NAME=$(grep 'name:' "$CONFIG_FILE" -A 0 | grep -v 'agent_name' | head -1 | sed 's/.*name: "\([^"]*\)".*/\1/' || echo "ForgeMaster")
-BOT_EMAIL=$(grep 'email:' "$CONFIG_FILE" | awk '{print $2}' | tr -d '"' || echo "forgemaster@antigravity.ai")
+# Get bot identity from environment or config
+BOT_NAME="${AG_BOT_NAME:-$(grep 'name:' "$CONFIG_FILE" -A 0 | grep -v 'agent_name' | head -1 | sed 's/.*name: "\([^"]*\)".*/\1/' || echo "ForgeMaster")}"
+BOT_EMAIL="${AG_BOT_EMAIL:-$(grep 'email:' "$CONFIG_FILE" | awk '{print $2}' | tr -d '"' || echo "forgemaster@antigravity.ai")}"
 
 cd "$FORGE_DIR"
 git add -A

@@ -3,7 +3,7 @@ mission:
   max_concurrent_forges: 3   # parallel issue limit across ALL repos
   bot:
     name: "ForgeMaster"
-    email: "forgemaster@antigravity.ai"
+    email: "bot@example.com" # OVERRIDE this in .env.local as AG_BOT_EMAIL to keep your real email out of Git
 
 repos:
   - name: "mgosal/anti-gravity-forge"   # specific repo
