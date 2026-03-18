@@ -1,19 +1,22 @@
-# Anti-Gravity Custom Rules
+# Iron Tech Forge: AI Participation Rules
 
-These rules apply to any Anti-Gravity AI chat session that is working within the `anti-gravity-forge` repository.
+These rules apply to any automated or semi-automated AI session (like Anti-Gravity Chat) interacting with this repository.
 
-## Branching Strategy for Manual Work
+## Branching Strategy
+- **Manual Chores/Features**: Always create a new branch prefixed with `chore/` or `feat/`.
+- **Merge Process**: Do NOT push directly to `main`. Open a Pull Request and use the Admin Bypass only if explicitly requested by the user.
+- **Automated Fixes**: The internal Forge pipeline uses `ag/issue-###` (historical) or `forge/issue-###` (new standard) branches. 
 
-When the user asks the AI to manually modify the Forge's infrastructure (such as editing Bash scripts in `scripts/`, YAML configuration files in `.antigravity/`, or GitHub workflows), the AI **MUST NOT** commit directly to the `main` branch.
+## Security & Identity
+- **Environment Overrides**: Never hardcode emails or API keys in `config.yml`. Always use `AG_BOT_EMAIL` and `AG_BOT_NAME` environment variables (sourced from `.env.local`).
+- **Secret Leaks**: Check `.env.local` is in `.gitignore` before every push. 
 
-Instead, the AI must follow this workflow:
-1. Create a new branch off `main` using the appropriate Conventional Commits prefix:
-   - `chore/<description>` for housekeeping, config updates, script tweaks, or `.gitignore` changes.
-   - `feat/<description>` for net-new features or significant agent logic additions.
-   - `fix/<description>` for bug fixes in the manual scripts.
-2. Make the requested changes.
-3. Commit the changes using the same Conventional Commits format prefix in the commit message.
-4. Push the branch to the remote repository.
-5. Create a GitHub Pull Request for the user to review.
+## Rebranding Guardrails
+- **Naming Context**: This project is **Iron Tech Forge** (formerly Anti-Gravity Forge).
+- **Control Folder**: Configuration lives in **`.forge-master/`** (formerly `.antigravity/`).
+- **Labels**: Use **`forge-`** prefixed labels for triggering the pipeline.
 
-*Note: The automated Forge agents running via IronTech use the `ag/issue-*` branch prefix. The rules above apply ONLY to the human-AI pair programming chat session.*
+## Grounded Documentation
+- Maintain a highly technical, scientific, and representative tone in all README updates and PR descriptions. 
+- Avoid hype. Use comparison tables to document architectural trade-offs.
+- When finishing a task, update the `walkthrough.md` or `README.md` to ensure context persistence across different workspaces.

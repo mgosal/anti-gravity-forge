@@ -124,6 +124,35 @@ vim .forge-master/config.yml
 #    The forge will pick it up on the next poll cycle.
 ```
 
+---
+
+## Local Dev Setup
+
+If you are setting up a fresh workspace (e.g., after a new `git clone`), follow these steps:
+
+### 1. Re-create `.env.local`
+This project relies on environment variables for sensitive access. Create a `.env.local` file in the root:
+
+```bash
+# Required: Your OpenRouter API Key
+OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxx
+
+# Recommended: Your Git commit identity (to avoid leaking personal emails)
+AG_BOT_EMAIL="your-bot-email@example.com"
+AG_BOT_NAME="ForgeMaster"
+```
+
+### 2. Configure Repositories
+Edit `.forge-master/config.yml` to include the repositories you want to monitor.
+
+### 3. Verify Remote
+If you renamed the repository on GitHub, ensure your local remote is updated:
+```bash
+git remote set-url origin https://github.com/mgosal/iron-tech-forge.git
+```
+
+---
+
 ### Manual Run (Single Issue)
 
 ```bash
