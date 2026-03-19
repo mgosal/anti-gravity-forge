@@ -48,7 +48,14 @@ active_forge_count() {
 
 resolve_repos() {
   local raw_repos
-  raw_repos=$(grep -E '^\s+- name:' "$CONFIG_FILE" | sed 's/.*name:\s*"\?\([^"]*\)"\?.*/\1/' | xargs)
+  if [ -n "${AG_REPOS:-}" ]; then
+    # Use comma or space-separated repos from environment variable
+    raw_repos=$(echo "$AG_REPOS" | tr ',' ' ')
+  else
+    # Fallback to config file
+    raw_repos=$(grep -E '^\s+- name:' "$CONFIG_FILE" 2>/dev/null | sed 's/.*name:\s*"\?\([^"]*\)"\?.*/\1/' | xargs 2>/dev/null || echo "")
+  fi
+
   local resolved=()
   for entry in $raw_repos; do
     if [[ "$entry" == *"/*" ]]; then
@@ -62,6 +69,7 @@ resolve_repos() {
   done
   echo "${resolved[@]}"
 }
+
 
 if [ -z "${OPENROUTER_API_KEY:-}" ]; then
   echo "Error: OPENROUTER_API_KEY is not set."
