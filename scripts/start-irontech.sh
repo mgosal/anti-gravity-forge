@@ -85,6 +85,14 @@ while true; do
   if [ "$(active_forge_count)" -lt "$MAX_FORGES" ]; then
     REPOS=$(resolve_repos)
     for REPO in $REPOS; do
+      # 1. Check for initialization requests (/forge-init in title)
+      INIT_ISSUES=$(gh issue list -R "$REPO" --search "/forge-init in:title" --json number --jq '.[].number' 2>/dev/null || echo "")
+      for INIT_ID in $INIT_ISSUES; do
+        log "Initializing repository ${REPO} via issue #${INIT_ID}"
+        "${SCRIPT_DIR}/repo-init.sh" "$REPO" "$INIT_ID" 2>&1 | tee -a "$MISSION_LOG" || true
+      done
+
+      # 2. Process regular issues
       ISSUES=$(gh issue list -R "$REPO" --label "$LABEL_TRIGGER" --json number --jq '.[].number' 2>/dev/null || echo "")
       IN_PROGRESS=$(gh issue list -R "$REPO" --label "$LABEL_IN_PROGRESS" --json number --jq '.[].number' 2>/dev/null || echo "")
       for ISSUE_ID in $ISSUES; do
@@ -99,6 +107,7 @@ while true; do
         fi
       done
     done
+
   fi
   sleep "$POLL_INTERVAL"
 done
