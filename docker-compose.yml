@@ -1,0 +1,19 @@
+
+services:
+
+  forge-daemon:
+    build: .
+    image: iron-tech-forge:latest
+    container_name: iron-tech-forge
+    restart: unless-stopped
+    env_file:
+      - .env.local
+    volumes:
+      # Mount configuration for Iron Tech Forge
+      - ./.forge-master:/app/.forge-master:ro
+      
+      # Persist the workspaces across restarts
+      - forge_workspaces:/app/forge_workspaces
+
+volumes:
+  forge_workspaces:

@@ -48,7 +48,14 @@ active_forge_count() {
 
 resolve_repos() {
   local raw_repos
-  raw_repos=$(grep -E '^\s+- name:' "$CONFIG_FILE" | sed 's/.*name:\s*"\?\([^"]*\)"\?.*/\1/' | xargs)
+  if [ -n "${AG_REPOS:-}" ]; then
+    # Use comma or space-separated repos from environment variable
+    raw_repos=$(echo "$AG_REPOS" | tr ',' ' ')
+  else
+    # Fallback to config file
+    raw_repos=$(grep -E '^\s+- name:' "$CONFIG_FILE" 2>/dev/null | sed 's/.*name:\s*"\?\([^"]*\)"\?.*/\1/' | xargs 2>/dev/null || echo "")
+  fi
+
   local resolved=()
   for entry in $raw_repos; do
     if [[ "$entry" == *"/*" ]]; then
@@ -62,6 +69,7 @@ resolve_repos() {
   done
   echo "${resolved[@]}"
 }
+
 
 if [ -z "${OPENROUTER_API_KEY:-}" ]; then
   echo "Error: OPENROUTER_API_KEY is not set."
@@ -85,6 +93,14 @@ while true; do
   if [ "$(active_forge_count)" -lt "$MAX_FORGES" ]; then
     REPOS=$(resolve_repos)
     for REPO in $REPOS; do
+      # 1. Check for initialization requests (/forge-init in title)
+      INIT_ISSUES=$(gh issue list -R "$REPO" --search "/forge-init in:title" --json number --jq '.[].number' 2>/dev/null || echo "")
+      for INIT_ID in $INIT_ISSUES; do
+        log "Initializing repository ${REPO} via issue #${INIT_ID}"
+        "${SCRIPT_DIR}/repo-init.sh" "$REPO" "$INIT_ID" 2>&1 | tee -a "$MISSION_LOG" || true
+      done
+
+      # 2. Process regular issues
       ISSUES=$(gh issue list -R "$REPO" --label "$LABEL_TRIGGER" --json number --jq '.[].number' 2>/dev/null || echo "")
       IN_PROGRESS=$(gh issue list -R "$REPO" --label "$LABEL_IN_PROGRESS" --json number --jq '.[].number' 2>/dev/null || echo "")
       for ISSUE_ID in $ISSUES; do
@@ -99,6 +115,7 @@ while true; do
         fi
       done
     done
+
   fi
   sleep "$POLL_INTERVAL"
 done
