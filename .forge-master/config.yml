@@ -22,7 +22,32 @@ forge:
   cleanup_after_merge: true
 
 agents:
-  model: "anthropic/claude-opus-4.6"   # via OpenRouter
-  provider: "openrouter"
-  max_tokens: 8192
-  temperature: 0
+  # Model for tool-calling inner loop (must support OpenAI tools schema)
+  model: "anthropic/claude-3.5-sonnet"
+  # Model for code-reviewer and final gate only (higher quality, slower)
+  reviewer_model: "anthropic/claude-opus-4.6"
+  # Model for architect persona (blank repo onboarding)
+  architect_model: "anthropic/claude-3.5-sonnet"
+  max_tool_rounds: 10      # max tool call rounds per agent invocation
+  max_retries: 3           # retry limit for engineer loop and test loop independently
+
+execution:
+  # Leave blank to auto-detect from package.json/Makefile/Cargo.toml/etc.
+  # Set explicitly to override auto-detection for a specific repo.
+  build_cmd: ""
+  test_cmd: ""
+  cmd_timeout: 120   # seconds per shell command execution
+  allowed_cmds:      # allowlist for run_shell — only these commands may be executed
+    - "npm test"
+    - "npm run build"
+    - "npm run lint"
+    - "cargo test"
+    - "cargo build"
+    - "cargo clippy"
+    - "pytest"
+    - "python -m pytest"
+    - "go test ./..."
+    - "go build ./..."
+    - "make test"
+    - "make build"
+    - "make lint"
