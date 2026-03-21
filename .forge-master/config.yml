@@ -6,8 +6,8 @@ mission:
     email: "bot@example.com" # OVERRIDE this in .env.local as AG_BOT_EMAIL to keep your real email out of Git
 
 repos:
-  - name: "mgosal/anti-gravity-forge"   # specific repo
-  # - name: "mgosal/*"                  # wildcard support (requires gh CLI list)
+  - name: "mgosal/Iron-Tech-Forge-Idea0"   # specific repo
+  # - name: "mgosal/*"                     # wildcard support (requires gh CLI list)
 
 labels:
   trigger: "forge-fix"
