@@ -57,6 +57,8 @@ git_checkpoint() {
     git add -A
     # Use 'work:' prefix to avoid auto-closing keywords
     git -c user.name="$BOT_NAME" -c user.email="$BOT_EMAIL" commit -m "work: $msg (checkpoint)" || true
+    # Ensure git is authenticated via gh CLI
+    gh auth setup-git >/dev/null 2>&1 || true
     # Masking push output to keep logs clean
     git push --set-upstream origin "$BRANCH_NAME" >/dev/null 2>&1 || true
   )
@@ -277,10 +279,8 @@ echo "$PR_RESPONSE" > "${META_DIR}/pr-description.md"
 BOT_NAME="${AG_BOT_NAME:-$(grep 'name:' "$CONFIG_FILE" -A 0 | grep -v 'agent_name' | head -1 | sed 's/.*name: "\([^"]*\)".*/\1/' || echo "ForgeMaster")}"
 BOT_EMAIL="${AG_BOT_EMAIL:-$(grep 'email:' "$CONFIG_FILE" | awk '{print $2}' | tr -d '"' || echo "bot@example.com")}"
 
-cd "$FORGE_DIR"
-git add -A
-git -c user.name="$BOT_NAME" -c user.email="$BOT_EMAIL" commit -m "work: address issue #${ISSUE_ID} (${ISSUE_ID})" || true
-git push origin "$BRANCH_NAME" 2>/dev/null || git push --set-upstream origin "$BRANCH_NAME"
+git_checkpoint "Assemble PR code and metadata"
+
 BASE_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "main")
 gh pr create -R "$REPO" --base "$BASE_BRANCH" --head "$BRANCH_NAME" --title "🔧 fix: ${ISSUE_TITLE}" --body-file "${META_DIR}/pr-description.md" --draft --label "forge-pr-ready" 2>/dev/null || true
 gh issue edit "$ISSUE_ID" -R "$REPO" --add-label "forge-pr-ready" --remove-label "forge-in-progress" 2>/dev/null || true
