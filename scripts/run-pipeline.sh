@@ -158,22 +158,23 @@ if [ "$(jq -r '.architectural_change // false' "${META_DIR}/triage.json")" = "tr
     log "⏭️ Skipping Stage 2 Escalation: Architectural approval already found."
   else
     log "⚠️ --- Architect Escalation from Triager ---"
-  ARCHITECT_RAW=$(invoke_tool_agent "architect" "# Issue\n\`\`\`json\n${ISSUE_JSON}\n\`\`\`\n\n# Triage Findings\n\`\`\`json\n$(cat "${META_DIR}/triage.json")\n\`\`\`" "$TOOLS_READ")
-  extract_json "$ARCHITECT_RAW" > "${META_DIR}/architect.json"
-  
-  if jq -e . >/dev/null 2>&1 <<< "$(cat "${META_DIR}/architect.json")"; then
-    if [ "$(jq -r '.approved // false' "${META_DIR}/architect.json")" = "true" ]; then
-      log "✅ Structural plan explicitly approved by human. Proceeding..."
-      git_checkpoint "Structural escalation approved"
+    ARCHITECT_RAW=$(invoke_tool_agent "architect" "# Issue\n\`\`\`json\n${ISSUE_JSON}\n\`\`\`\n\n# Triage Findings\n\`\`\`json\n$(cat "${META_DIR}/triage.json")\n\`\`\`" "$TOOLS_READ")
+    extract_json "$ARCHITECT_RAW" > "${META_DIR}/architect.json"
+    
+    if jq -e . >/dev/null 2>&1 <<< "$(cat "${META_DIR}/architect.json")"; then
+      if [ "$(jq -r '.approved // false' "${META_DIR}/architect.json")" = "true" ]; then
+        log "✅ Structural plan explicitly approved by human. Proceeding..."
+        git_checkpoint "Structural escalation approved"
+      else
+        ARCHITECT_COMMENT=$(jq -r '.comment_body // ""' "${META_DIR}/architect.json")
+        if [ -z "$ARCHITECT_COMMENT" ]; then ARCHITECT_COMMENT=$(cat "${META_DIR}/architect.json"); fi
+        post_comment_and_pause "⏳ **Action Required: Structural Plan**\n\n$ARCHITECT_COMMENT" "Waiting for human to approve mid-issue structural plan"
+      fi
     else
-      ARCHITECT_COMMENT=$(jq -r '.comment_body // ""' "${META_DIR}/architect.json")
-      if [ -z "$ARCHITECT_COMMENT" ]; then ARCHITECT_COMMENT=$(cat "${META_DIR}/architect.json"); fi
+      log "⚠️ Architect agent failed to output valid JSON. Falling back to raw text string."
+      ARCHITECT_COMMENT=$(cat "${META_DIR}/architect.json" || echo "Fatal error extracting plan.")
       post_comment_and_pause "⏳ **Action Required: Structural Plan**\n\n$ARCHITECT_COMMENT" "Waiting for human to approve mid-issue structural plan"
     fi
-  else
-    log "⚠️ Architect agent failed to output valid JSON. Falling back to raw text string."
-    ARCHITECT_COMMENT=$(cat "${META_DIR}/architect.json" || echo "Fatal error extracting plan.")
-    post_comment_and_pause "⏳ **Action Required: Structural Plan**\n\n$ARCHITECT_COMMENT" "Waiting for human to approve mid-issue structural plan"
   fi
 fi
 
