@@ -236,7 +236,7 @@ BOT_EMAIL="${AG_BOT_EMAIL:-$(grep 'email:' "$CONFIG_FILE" | awk '{print $2}' | t
 
 cd "$FORGE_DIR"
 git add -A
-git -c user.name="$BOT_NAME" -c user.email="$BOT_EMAIL" commit -m "fix: resolve issue #${ISSUE_ID} (#${ISSUE_ID})" || true
+git -c user.name="$BOT_NAME" -c user.email="$BOT_EMAIL" commit -m "work: address issue #${ISSUE_ID} (${ISSUE_ID})" || true
 BRANCH_NAME="ag/issue-${ISSUE_ID}"
 git push origin "$BRANCH_NAME" 2>/dev/null || git push --set-upstream origin "$BRANCH_NAME"
 BASE_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "main")
