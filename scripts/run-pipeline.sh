@@ -70,7 +70,7 @@ if [ ! -d "$FORGE_DIR" ]; then exit 1; fi
 if [ -z "${OPENROUTER_API_KEY:-}" ]; then exit 1; fi
 mkdir -p "$META_DIR"
 
-log "=== FORGE PIPELINE v2 START: ${REPO} Issue #${ISSUE_ID} ==="
+log "🚀 === FORGE PIPELINE v2 START: ${REPO} Issue #${ISSUE_ID} ==="
 
 ISSUE_JSON=$(gh issue view "$ISSUE_ID" -R "$REPO" --json title,body,labels,comments 2>/dev/null || echo '{}')
 ISSUE_TITLE=$(echo "$ISSUE_JSON" | jq -r '.title // "Unknown"')
@@ -83,7 +83,7 @@ if echo "$LABELS" | grep -q "forge-needs-human"; then
 fi
 
 # Stage 0: Index Codebase
-log "--- Stage 0: Indexing Codebase ---"
+log "🔍 --- Stage 0: Indexing Codebase ---"
 "${SCRIPT_DIR}/lib/codebase-index.sh" "$FORGE_DIR" 2>&1 | tee -a "$LOG_FILE" || true
 CONTEXT_JSON=$(cat "${META_DIR}/context.json" 2>/dev/null || echo '{}')
 BLANK_REPO=$(echo "$CONTEXT_JSON" | jq -r '.blank_repo // false')
@@ -94,14 +94,14 @@ readonly TOOLS_FULL=$(echo "$TOOLS_READ" | jq '. + [{"type":"function","function
 
 # Stage 1: Architect (if blank repo or flagged later)
 if [ "$BLANK_REPO" = "true" ]; then
-  log "--- Stage 1: Architect (Blank Repo) ---"
+  log "🏗️ --- Stage 1: Architect (Blank Repo) ---"
   ARCHITECT_RESPONSE=$(invoke_tool_agent "architect" "# Issue\n\`\`\`json\n${ISSUE_JSON}\n\`\`\`\n\n# Context\n\`\`\`json\n${CONTEXT_JSON}\n\`\`\`" "$TOOLS_READ")
   echo "$ARCHITECT_RESPONSE" > "${META_DIR}/architect.md"
-  post_comment_and_pause "$ARCHITECT_RESPONSE" "Waiting for human to approve architect plan"
+  post_comment_and_pause "⏳ **Action Required: Architect Plan**\n\n$ARCHITECT_RESPONSE" "Waiting for human to approve architect plan"
 fi
 
 # Stage 2: Triage
-log "--- Stage 2: Triager ---"
+log "📥 --- Stage 2: Triager ---"
 TRIAGE_RAW=$(invoke_tool_agent "triager" "# Issue\n\`\`\`json\n${ISSUE_JSON}\n\`\`\`\n\n# Context\n\`\`\`json\n${CONTEXT_JSON}\n\`\`\`" "$TOOLS_READ")
 extract_json "$TRIAGE_RAW" > "${META_DIR}/triage.json"
 
@@ -112,35 +112,35 @@ if [ "$(jq -r '.actionable' "${META_DIR}/triage.json")" != "true" ]; then
 fi
 
 if [ "$(jq -r '.architectural_change // false' "${META_DIR}/triage.json")" = "true" ]; then
-  log "--- Architect Escalation from Triager ---"
+  log "⚠️ --- Architect Escalation from Triager ---"
   ARCHITECT_RESPONSE=$(invoke_tool_agent "architect" "# Issue\n\`\`\`json\n${ISSUE_JSON}\n\`\`\`\n\n# Triage Findings\n\`\`\`json\n$(cat "${META_DIR}/triage.json")\n\`\`\`" "$TOOLS_READ")
-  post_comment_and_pause "$ARCHITECT_RESPONSE" "Waiting for human to approve mid-issue structural plan"
+  post_comment_and_pause "⏳ **Action Required: Structural Plan**\n\n$ARCHITECT_RESPONSE" "Waiting for human to approve mid-issue structural plan"
 fi
 
 # Configuration limits
 MAX_RETRIES=$(grep 'max_retries:' "$CONFIG_FILE" | awk '{print $2}' || echo 3)
 
 # Stage 3: Engineer Loop
-log "--- Stage 3: Engineer Loop ---"
+log "🧑‍💻 --- Stage 3: Engineer Loop ---"
 ENGINEER_PROMPT="# Plan\n\`\`\`json\n$(cat "${META_DIR}/triage.json")\n\`\`\`\n\n# Context\n\`\`\`json\n${CONTEXT_JSON}\n\`\`\`"
 round=1
 engineer_success=false
 
 while [ $round -le $MAX_RETRIES ]; do
-  log "Engineer attempt $round..."
+  log "⚙️ Engineer attempt $round..."
   ENGINEER_RAW=$(invoke_tool_agent "engineer" "$ENGINEER_PROMPT" "$TOOLS_FULL")
   extract_json "$ENGINEER_RAW" > "${META_DIR}/engineer.json"
   
   if [ "$(jq -r '.build_passes' "${META_DIR}/engineer.json")" = "true" ]; then
-    log "Engineer succeeded on round $round."
+    log "✅ Engineer succeeded on round $round."
     engineer_success=true
     break
   fi
   
   if [ $round -eq $MAX_RETRIES ]; then
-    log "Engineer exhausted $MAX_RETRIES retries."
+    log "❌ Engineer exhausted $MAX_RETRIES retries."
     ESCALATE=$(invoke_tool_agent "retry-escalation" "# Component: Engineer Build\n# Triage Plan\n\`\`\`json\n$(cat "${META_DIR}/triage.json")\n\`\`\`\n\n# Last Output\n\`\`\`json\n$(cat "${META_DIR}/engineer.json")\n\`\`\`" "null")
-    post_comment_and_pause "$ESCALATE" "Engineer Retry Exhaustion"
+    post_comment_and_pause "🛑 **Engineer Retry Exhaustion:**\n\n$ESCALATE" "Engineer Retry Exhaustion"
   fi
   
   ENGINEER_PROMPT="${ENGINEER_PROMPT}\n\n# Round ${round} Failure\nThe build failed. See the exit_code and output in your previous message. You must fix the error."
@@ -148,27 +148,27 @@ while [ $round -le $MAX_RETRIES ]; do
 done
 
 # Stage 4: Test Loop
-log "--- Stage 4: Test-Writer Loop ---"
+log "🧪 --- Stage 4: Test-Writer Loop ---"
 DIFF=$(cd "$FORGE_DIR" && git diff HEAD 2>/dev/null || echo "")
 TEST_PROMPT="# Plan\n\`\`\`json\n$(cat "${META_DIR}/triage.json")\n\`\`\`\n\n# Context\n\`\`\`json\n${CONTEXT_JSON}\n\`\`\`\n\n# Engineering Diff\n\`\`\`diff\n${DIFF}\n\`\`\`"
 round=1
 test_success=false
 
 while [ $round -le $MAX_RETRIES ]; do
-  log "Test writer attempt $round..."
+  log "⚙️ Test writer attempt $round..."
   TEST_RAW=$(invoke_tool_agent "test-writer" "$TEST_PROMPT" "$TOOLS_FULL")
   extract_json "$TEST_RAW" > "${META_DIR}/tests.json"
   
   if [ "$(jq -r '.all_tests_pass' "${META_DIR}/tests.json")" = "true" ]; then
-    log "Tests succeeded on round $round."
+    log "✅ Tests succeeded on round $round."
     test_success=true
     break
   fi
   
   if [ $round -eq $MAX_RETRIES ]; then
-    log "Test-Writer exhausted $MAX_RETRIES retries."
+    log "❌ Test-Writer exhausted $MAX_RETRIES retries."
     ESCALATE=$(invoke_tool_agent "retry-escalation" "# Component: Test Execution\n# Plan\n\`\`\`json\n$(cat "${META_DIR}/triage.json")\n\`\`\`\n\n# Last Output\n\`\`\`json\n$(cat "${META_DIR}/tests.json")\n\`\`\`" "null")
-    post_comment_and_pause "$ESCALATE" "Test-Writer Retry Exhaustion"
+    post_comment_and_pause "🛑 **Test-Writer Retry Exhaustion:**\n\n$ESCALATE" "Test-Writer Retry Exhaustion"
   fi
   
   TEST_PROMPT="${TEST_PROMPT}\n\n# Round ${round} Failure\nTests failed. See output in your previous message. Fix the tests or code."
@@ -186,7 +186,7 @@ done
 # fi
 
 # Stage 5: Code Review
-log "--- Stage 5: Code Review ---"
+log "👀 --- Stage 5: Code Review ---"
 REVIEW_RAW=$(invoke_tool_agent "code-reviewer" "# Diff\n\`\`\`diff\n${DIFF}\n\`\`\`" "$TOOLS_READ")
 extract_json "$REVIEW_RAW" > "${META_DIR}/review.json"
 
@@ -197,7 +197,7 @@ if (( $(echo "$CONFIDENCE < 0.7" | bc -l) )) || [ "$(jq -r '.approval_status' "$
 fi
 
 # Stage 6: PR Assembly
-log "--- Stage 6: PR Assembly ---"
+log "📦 --- Stage 6: PR Assembly ---"
 PR_RESPONSE=$(invoke_tool_agent "pr-assembler" "# Context\n$(ls "${META_DIR}")" "null")
 echo "$PR_RESPONSE" > "${META_DIR}/pr-description.md"
 
@@ -214,4 +214,4 @@ BASE_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^re
 gh pr create -R "$REPO" --base "$BASE_BRANCH" --head "$BRANCH_NAME" --title "🔧 fix: ${ISSUE_TITLE}" --body-file "${META_DIR}/pr-description.md" --draft --label "forge-pr-ready" 2>/dev/null || true
 gh issue edit "$ISSUE_ID" -R "$REPO" --add-label "forge-pr-ready" --remove-label "forge-in-progress" 2>/dev/null || true
 
-log "=== FORGE PIPELINE COMPLETE ==="
+log "🎉 === FORGE PIPELINE COMPLETE ==="

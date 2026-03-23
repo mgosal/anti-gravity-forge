@@ -131,6 +131,7 @@ vim .forge-master/config.yml
 #    The forge will automatically set up the required labels.
 
 # 5. Create an issue on any watched repo with label "forge-fix"
+#    Note: Only repository contributors can successfully trigger the pipeline using this label.
 #    The forge will pick it up on the next poll cycle.
 
 ```

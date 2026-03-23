@@ -84,10 +84,10 @@ fi
 mkdir -p "$(dirname "$PID_FILE")"
 echo $$ > "$PID_FILE"
 
-cleanup() { log "Shutting down..."; rm -f "$PID_FILE"; exit 0; }
+cleanup() { log "🛑 Shutting down..."; rm -f "$PID_FILE"; exit 0; }
 trap cleanup SIGTERM SIGINT SIGHUP
 
-log "=== IronTech started (PID $$) ==="
+log "🚀 === IronTech started (PID $$) ==="
 
 while true; do
   if [ "$(active_forge_count)" -lt "$MAX_FORGES" ]; then
@@ -96,7 +96,7 @@ while true; do
       # 1. Check for initialization requests (/forge-init in title)
       INIT_ISSUES=$(gh issue list -R "$REPO" --search "/forge-init in:title" --json number --jq '.[].number' 2>/dev/null || echo "")
       for INIT_ID in $INIT_ISSUES; do
-        log "Initializing repository ${REPO} via issue #${INIT_ID}"
+        log "🆕 Initializing repository ${REPO} via issue #${INIT_ID}"
         "${SCRIPT_DIR}/repo-init.sh" "$REPO" "$INIT_ID" 2>&1 | tee -a "$MISSION_LOG" || true
       done
 
@@ -105,10 +105,21 @@ while true; do
       IN_PROGRESS=$(gh issue list -R "$REPO" --label "$LABEL_IN_PROGRESS" --json number --jq '.[].number' 2>/dev/null || echo "")
       for ISSUE_ID in $ISSUES; do
         if ! echo "$IN_PROGRESS" | grep -q "^${ISSUE_ID}$"; then
+          # Verify that the user who added the label is a collaborator
+          LABELER=$(gh api repos/$REPO/issues/$ISSUE_ID/events --jq '[.[] | select(.event == "labeled" and .label.name == "'"$LABEL_TRIGGER"'")] | last | .actor.login' 2>/dev/null || echo "")
+          if [ -n "$LABELER" ]; then
+            if ! gh api "repos/$REPO/collaborators/$LABELER" >/dev/null 2>&1; then
+              log "⚠️ Permission Denied: User $LABELER is not a collaborator. Skipping issue #${ISSUE_ID}."
+              gh issue edit "$ISSUE_ID" -R "$REPO" --remove-label "$LABEL_TRIGGER" 2>/dev/null || true
+              gh issue comment "$ISSUE_ID" -R "$REPO" --body "⚠️ **Permission Denied:** Only contributors can add this label. The \`${LABEL_TRIGGER}\` label has been removed." 2>/dev/null || true
+              continue
+            fi
+          fi
+
           if [ "$(active_forge_count)" -ge "$MAX_FORGES" ]; then break 2; fi
-          log "Processing ${REPO} issue #${ISSUE_ID}"
+          log "⚙️ Processing ${REPO} issue #${ISSUE_ID}"
           gh issue edit "$ISSUE_ID" -R "$REPO" --add-label "$LABEL_IN_PROGRESS" --remove-label "$LABEL_TRIGGER" 2>/dev/null || true
-          gh issue comment "$ISSUE_ID" -R "$REPO" --body "🔧 **Anti Gravity Forge activated.**" 2>/dev/null || true
+          gh issue comment "$ISSUE_ID" -R "$REPO" --body "🔧 **Iron Tech Forge activated.**" 2>/dev/null || true
           "${SCRIPT_DIR}/forge-create.sh" "$REPO" "$ISSUE_ID" 2>&1 | tee -a "$MISSION_LOG" || continue
           "${SCRIPT_DIR}/run-pipeline.sh" "$REPO" "$ISSUE_ID" 2>&1 | tee -a "$MISSION_LOG" || true
           "${SCRIPT_DIR}/forge-cleanup.sh" "$REPO" "$ISSUE_ID" "--force" 2>&1 | tee -a "$MISSION_LOG" || true
