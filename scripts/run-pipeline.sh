@@ -220,7 +220,11 @@ fi
 log "🧪 --- Stage 4: Test-Writer Loop ---"
 # Branch-based diff: Cumulative changes since branching from main
 BASE_BRANCH=$(cd "$FORGE_DIR" && git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "main")
-DIFF=$(cd "$FORGE_DIR" && git diff "origin/${BASE_BRANCH}...HEAD" 2>/dev/null || echo "")
+if cd "$FORGE_DIR" && git rev-parse "origin/${BASE_BRANCH}" >/dev/null 2>&1; then
+  DIFF=$(cd "$FORGE_DIR" && git diff "origin/${BASE_BRANCH}...HEAD" 2>/dev/null || echo "")
+else
+  DIFF=$(cd "$FORGE_DIR" && git diff 4b825dc642cb6eb9a060e54bf8d69288fbee4904 HEAD 2>/dev/null || echo "")
+fi
 TEST_PROMPT="# Plan\n\`\`\`json\n$(cat "${META_DIR}/triage.json")\n\`\`\`\n\n# Context\n\`\`\`json\n${CONTEXT_JSON}\n\`\`\`\n\n# Engineering Diff\n\`\`\`diff\n${DIFF}\n\`\`\`"
 round=1
 test_success=false
@@ -260,7 +264,11 @@ done
 # Stage 5: Code Review
 log "👀 --- Stage 5: Code Review ---"
 BASE_BRANCH=$(cd "$FORGE_DIR" && git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "main")
-DIFF=$(cd "$FORGE_DIR" && git diff "origin/${BASE_BRANCH}...HEAD" 2>/dev/null || echo "")
+if cd "$FORGE_DIR" && git rev-parse "origin/${BASE_BRANCH}" >/dev/null 2>&1; then
+  DIFF=$(cd "$FORGE_DIR" && git diff "origin/${BASE_BRANCH}...HEAD" 2>/dev/null || echo "")
+else
+  DIFF=$(cd "$FORGE_DIR" && git diff 4b825dc642cb6eb9a060e54bf8d69288fbee4904 HEAD 2>/dev/null || echo "")
+fi
 REVIEW_RAW=$(invoke_tool_agent "code-reviewer" "# Diff\n\`\`\`diff\n${DIFF}\n\`\`\`" "$TOOLS_READ")
 extract_json "$REVIEW_RAW" > "${META_DIR}/review.json"
 
