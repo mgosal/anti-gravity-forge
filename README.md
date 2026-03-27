@@ -1,6 +1,6 @@
 # Iron Tech Forge
 
-*A platform-independent, secure, and self-documenting agentic framework built to grow with you.*
+*A platform-independent and self-documenting agentic framework.*
 
 An experimental auto-fix pipeline that monitors GitHub for issues, attempts to resolve them through a chain of specialized agents, and submits draft PRs for human review.
 
@@ -25,14 +25,14 @@ Iron Tech Forge is a **zero-dependency, Unix-native agent framework**. Unlike mo
 | Feature | Iron Tech Forge | Devin / OpenHands | LangChain / CrewAI |
 |---------|---------------------|-------------------|-------------------|
 | **Language** | Bash / Unix Shell | Python / JS | Python / JS |
-| **Logic** | Linear Assembly Line | Re-entrant Loops | Graph / Sequential |
+| **Logic** | Agentic Loops | Re-entrant Loops | Graph / Sequential |
 | **Sandbox** | `git clone` (Shallow) | Docker / VM | Local / Varied |
 | **Primary Tool** | `curl` + `jq` | Persistent OS Shell | Library-specific SDKs |
-| **Complexity** | Minimalist | High | High |
+| **Complexity** | Medium | High | High |
 
 ---
 
-## High-Level Flow
+## High-Level Flow (v2 Agentic Loop)
 
 ```
 GitHub Issue (forge-fix label or /forge command)
@@ -44,41 +44,43 @@ GitHub Issue (forge-fix label or /forge command)
          │  Polls configured repos every N seconds
          ▼
 ┌─────────────────┐
-│   Issue Triager  │  Agent 1: classify, scope, plan
+│ [0] Index        │  Auto-detect language, build & test commands
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│    Forge Setup   │  Clone target repo → .forge/<owner>-<repo>/issue-<id>/
+│ [1] Architect*   │  If blank repo or complex change: Plan in GitHub issue
+└────────┬────────┘   Pauses, waits for human to re-add forge-fix
+         │
+         ▼
+┌─────────────────┐
+│ [2] Triager Loop │  Reads files, scopes work. Asks human if ambiguous.
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│    Engineer      │  Agent 2: implement the fix
+│ [3] Engineer Loop│  Writes real code. Runs build. Retries up to 3x on err.
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│   Test Writer    │  Agent 3: write/update tests
+│ [4] Test Loop    │  Writes tests. Runs tests. Retries up to 3x on err.
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│  Security Gate   │  Agent 4: SAST + dependency audit + secrets scan
+│ [5] Review Loop  │  Reads full files. Asks human if confidence < 0.7.
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│  Code Reviewer   │  Agent 5: style, correctness, conventions
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│   PR Assembler   │  Agent 6: create PR with structured description
+│ [6] PR Assembler │  Synthesises PR description.
 └────────┬────────┘
          │
          ▼
   GitHub PR (draft, assigned to human reviewer)
+
+[Any Exhaustion] → Escalation Agent posts GitHub comment & exits cleanly.
 ```
 
 ### Runtime Environment
@@ -129,6 +131,7 @@ vim .forge-master/config.yml
 #    The forge will automatically set up the required labels.
 
 # 5. Create an issue on any watched repo with label "forge-fix"
+#    Note: Only repository contributors can successfully trigger the pipeline using this label.
 #    The forge will pick it up on the next poll cycle.
 
 ```
@@ -250,97 +253,86 @@ forge:
   cleanup_after_merge: true
 
 agents:
-  model: "anthropic/claude-opus"   # via OpenRouter
-  provider: "openrouter"
-  max_tokens: 8192
-  temperature: 0
+  # Model for tool-calling inner loop (must support OpenAI tools schema)
+  model: "anthropic/claude-3.5-sonnet"
+  # Model for code-reviewer and final gate only (higher quality, slower)
+  reviewer_model: "anthropic/claude-opus-4.6"
+  # Model for architect persona (blank repo onboarding)
+  architect_model: "anthropic/claude-3.5-sonnet"
+  max_tool_rounds: 10      # max tool call rounds per agent invocation
+  max_retries: 3           # retry limit for engineer loop and test loop independently
+
+execution:
+  # Leave blank to auto-detect from package.json/Makefile/Cargo.toml/etc.
+  build_cmd: ""
+  test_cmd: ""
+  cmd_timeout: 120   # seconds per shell command execution
+  allowed_cmds:      # allowlist for run_shell — only these commands may be executed
+    - "npm test"
+    - "npm run build"
+    - "cargo test"
+    - "cargo build"
+    - "pytest"
+    - "make test"
 ```
-
-### Environment Variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `OPENROUTER_API_KEY` | Yes | OpenRouter API key for Claude Opus |
-| `AG_BOT_EMAIL` | No | Secret email override for Git commits |
-| `AG_POLL_INTERVAL` | No | Override poll interval (default: 60s) |
-| `AG_MAX_FORGES` | No | Override max concurrent forges (default: 3) |
-
-### GitHub Labels
-
-| Label | Meaning |
-|-------|---------|
-| `forge-fix` | **Trigger:** issue needs automated fix |
-| `forge-in-progress` | Pipeline is actively working on it |
-| `forge-pr-ready` | Draft PR has been submitted |
-| `forge-needs-human` | Pipeline halted — manual intervention required |
 
 ---
 
 ## Pipeline Stages — Detailed Specifications
 
-### Stage 1: Issue Triager
+### Stage 0: Codebase Indexer
+
+**Script:** `scripts/lib/codebase-index.sh`
+**Responsibilities:** Detects language, project type, and specific build/test commands.
+
+---
+
+### Stage 1: Architect (Conditional)
+
+**Agent file:** `.agents/rules/architect.md`
+**Responsibilities:** Kicks in for empty repos or massive changes. Formulates high-level plan as a GitHub issue comment, pauses pipeline for human approval.
+
+---
+
+### Stage 2: Issue Triager
 
 **Agent file:** `.agents/rules/triager.md`
-
-**Input:** Raw GitHub issue (title, body, labels, comments)
-
-**Responsibilities:**
-1. Parse the issue to extract the actual problem
-2. Classify severity: `trivial` | `standard` | `complex`
-3. Identify likely affected files/modules
-4. Produce a scoped implementation plan
-
-**Output contract:** `.forge-meta/triage.json`
+**Responsibilities:** Parses the issue, uses `search_codebase` tools to confirm affected files, and produces a scoped implementation plan. Loop: Asks human if ambiguous.
 
 ---
 
-### Stage 2: Engineer
+### Stage 3: Engineer Loop
 
 **Agent file:** `.agents/rules/engineer.md`
-
-**Responsibilities:**
-1. Read the implementation plan from triage
-2. Implement the fix following existing code style
-3. Ensure the code compiles/passes linting
+**Responsibilities:** Implements the fix using `write_file`, `apply_diff`, `sed_replace`. Shells out to the actual repository build command. If it fails, error output is fed back for a retry (max 3).
 
 ---
 
-### Stage 3: Test Writer
+### Stage 4: Test Loop
 
 **Agent file:** `.agents/rules/test-writer.md`
-
-**Responsibilities:**
-1. Write tests that cover the specific fix
-2. Run the test suite to verify
-
----
-
-### Stage 4: Security Gate
-
-**Agent file:** `.agents/rules/security-gate.md`
-
-**Sub-checks:** SAST + Dependency Audit + Secrets Scan
+**Responsibilities:** Writes tests and runs the actual repository test suite. If it fails, error output is fed back for a retry (max 3).
 
 ---
 
 ### Stage 5: Code Reviewer
 
 **Agent file:** `.agents/rules/code-reviewer.md`
-
-**Responsibilities:**
-1. Review code changes for correctness and maintainability
+**Responsibilities:** Uses `read_file` to review full files in context. Ensures code matches conventions, assigns confidence score. Halts if score is low.
 
 ---
 
 ### Stage 6: PR Assembler
 
 **Agent file:** `.agents/rules/pr-assembler.md`
-
-**Responsibilities:**
-1. Fill in the PR description template
-2. **Auto-Close Logic**: Includes "Closes #ID" to automatically resolve issues upon merge.
+**Responsibilities:** Synthesizes the run into a perfect PR description. Auto-closes issues via "Closes #ID".
 
 ---
+
+### Escalation: Retry Escalator
+
+**Agent file:** `.agents/rules/retry-escalation.md`
+**Responsibilities:** Steps in when Engineer or Test loops hit max retries. Posts a blameless summary of what was tried and what failed to GitHub.
 
 ## Forge Lifecycle
 
@@ -397,22 +389,16 @@ iron-tech-forge/
 - [x] Zero-dependency Unix-native architecture
 - [x] Auto-closing issue logic
 
-### Phase 2 — Operational Hardening ✅ (Built)
-- [x] **Dockerization**: Containerize for one-click deployment.
-- [x] **Repository Initialization**: Automated label setup via `/forge-init` issues.
-- [x] **Environment-based Config**: Support for secret/config separation via `.env.local`.
+### Phase 2 — V2 Agentic Loop ✅ (Built)
+- [x] **Real Code Application**: Diffs pushed to disk.
+- [x] **Real Test/Build Execution**: Shelling out to actual repo scripts.
+- [x] **Retry Loops**: Engineer & Test auto-recover from failures.
+- [x] **Human-in-the-Loop**: Architect & Triage interact over GitHub comments.
 
 ### Phase 3 — Future Roadmap
-- [ ] **Re-entrant Engineering**: Terminal-looping for self-healing fixes.
-- [ ] **Webhook Triggering**: Move to real-time events.
-
+- [ ] **Web Search**: Give Architect tool access to research APIs/Frameworks online.
+- [ ] **Webhook Triggering**: Move from polling to real-time events.
 
 ---
-
-## Current Deficiencies & Limitations
-
-1. **Linear Logic**: Agents cannot "re-try" a fix if a test fails (yet).
-2. **Polling Latency**: Daemon-based polling instead of Webhooks.
-3. **Hardware Bound**: Designed for single-machine use.
 
 *PRs are always draft. Human review is required before merging.*

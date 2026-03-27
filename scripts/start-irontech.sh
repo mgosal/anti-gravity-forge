@@ -21,8 +21,22 @@ elif [ -f "${PROJECT_ROOT}/.env.local" ]; then
 fi
 
 PID_FILE="${PROJECT_ROOT}/.irontech.pid"
-MISSION_LOG="${PROJECT_ROOT}/irontech.log"
 CONFIG_FILE="${PROJECT_ROOT}/.forge-master/config.yml"
+
+# Identify Forge base directory and set up persistent logging
+FORGE_BASE=$(grep 'base_dir:' "$CONFIG_FILE" | awk '{print $2}' | tr -d '"' || echo "forge_workspaces")
+FORGE_DIR="${PROJECT_ROOT}/${FORGE_BASE}"
+MISSION_LOG="${FORGE_DIR}/irontech.log"
+LOG_ARCHIVE="${FORGE_DIR}/logs"
+
+# Ensure directories exist
+mkdir -p "$LOG_ARCHIVE"
+
+# Rotate log if it already exists from a previous session
+if [ -f "$MISSION_LOG" ]; then
+  ARCHIVE_NAME="irontech_$(date +%Y%m%d_%H%M%S).log"
+  mv "$MISSION_LOG" "${LOG_ARCHIVE}/${ARCHIVE_NAME}"
+fi
 
 # Extract defaults from config.yml (using basic grep/sed for portability)
 POLL_INTERVAL_CONFIG=$(grep 'poll_interval:' "$CONFIG_FILE" | awk '{print $2}' | tr -d ' ' || echo 60)
@@ -40,10 +54,8 @@ log() {
 }
 
 active_forge_count() {
-  local forge_base=$(grep 'base_dir:' "$CONFIG_FILE" | awk '{print $2}' | tr -d '"' || echo ".forge")
-  local forge_dir="${PROJECT_ROOT}/${forge_base}"
-  if [ ! -d "$forge_dir" ]; then echo 0; return; fi
-  find "$forge_dir" -mindepth 2 -maxdepth 2 -type d -name 'issue-*' 2>/dev/null | wc -l | tr -d ' '
+  if [ ! -d "$FORGE_DIR" ]; then echo 0; return; fi
+  find "$FORGE_DIR" -mindepth 2 -maxdepth 2 -type d -name 'issue-*' 2>/dev/null | wc -l | tr -d ' '
 }
 
 resolve_repos() {
@@ -84,10 +96,10 @@ fi
 mkdir -p "$(dirname "$PID_FILE")"
 echo $$ > "$PID_FILE"
 
-cleanup() { log "Shutting down..."; rm -f "$PID_FILE"; exit 0; }
+cleanup() { log "🛑 Shutting down..."; rm -f "$PID_FILE"; exit 0; }
 trap cleanup SIGTERM SIGINT SIGHUP
 
-log "=== IronTech started (PID $$) ==="
+log "🚀 === IronTech started (PID $$) ==="
 
 while true; do
   if [ "$(active_forge_count)" -lt "$MAX_FORGES" ]; then
@@ -96,7 +108,7 @@ while true; do
       # 1. Check for initialization requests (/forge-init in title)
       INIT_ISSUES=$(gh issue list -R "$REPO" --search "/forge-init in:title" --json number --jq '.[].number' 2>/dev/null || echo "")
       for INIT_ID in $INIT_ISSUES; do
-        log "Initializing repository ${REPO} via issue #${INIT_ID}"
+        log "🆕 Initializing repository ${REPO} via issue #${INIT_ID}"
         "${SCRIPT_DIR}/repo-init.sh" "$REPO" "$INIT_ID" 2>&1 | tee -a "$MISSION_LOG" || true
       done
 
@@ -105,12 +117,30 @@ while true; do
       IN_PROGRESS=$(gh issue list -R "$REPO" --label "$LABEL_IN_PROGRESS" --json number --jq '.[].number' 2>/dev/null || echo "")
       for ISSUE_ID in $ISSUES; do
         if ! echo "$IN_PROGRESS" | grep -q "^${ISSUE_ID}$"; then
+          # Verify that the user who added the label is a collaborator
+          LABELER=$(gh api repos/$REPO/issues/$ISSUE_ID/events --jq '[.[] | select(.event == "labeled" and .label.name == "'"$LABEL_TRIGGER"'")] | last | .actor.login' 2>/dev/null || echo "")
+          if [ -n "$LABELER" ]; then
+            if ! gh api "repos/$REPO/collaborators/$LABELER" >/dev/null 2>&1; then
+              log "⚠️ Permission Denied: User $LABELER is not a collaborator. Skipping issue #${ISSUE_ID}."
+              gh issue edit "$ISSUE_ID" -R "$REPO" --remove-label "$LABEL_TRIGGER" 2>/dev/null || true
+              gh issue comment "$ISSUE_ID" -R "$REPO" --body "⚠️ **Permission Denied:** Only contributors can add this label. The \`${LABEL_TRIGGER}\` label has been removed." 2>/dev/null || true
+              continue
+            fi
+          fi
+
           if [ "$(active_forge_count)" -ge "$MAX_FORGES" ]; then break 2; fi
-          log "Processing ${REPO} issue #${ISSUE_ID}"
+          log "⚙️ Processing ${REPO} issue #${ISSUE_ID}"
           gh issue edit "$ISSUE_ID" -R "$REPO" --add-label "$LABEL_IN_PROGRESS" --remove-label "$LABEL_TRIGGER" 2>/dev/null || true
-          gh issue comment "$ISSUE_ID" -R "$REPO" --body "🔧 **Anti Gravity Forge activated.**" 2>/dev/null || true
+          gh issue comment "$ISSUE_ID" -R "$REPO" --body "🔧 **Iron Tech Forge activated.**" 2>/dev/null || true
           "${SCRIPT_DIR}/forge-create.sh" "$REPO" "$ISSUE_ID" 2>&1 | tee -a "$MISSION_LOG" || continue
           "${SCRIPT_DIR}/run-pipeline.sh" "$REPO" "$ISSUE_ID" 2>&1 | tee -a "$MISSION_LOG" || true
+          
+          # Selective Cleanup: Only wipe if NOT waiting for human input
+          if gh issue view "$ISSUE_ID" -R "$REPO" --json labels --jq '.labels[].name' 2>/dev/null | grep -q "forge-needs-human"; then
+            log "⏸️ Pipeline paused for human. Preserving workspace for ${REPO} issue #${ISSUE_ID}."
+            continue
+          fi
+
           "${SCRIPT_DIR}/forge-cleanup.sh" "$REPO" "$ISSUE_ID" "--force" 2>&1 | tee -a "$MISSION_LOG" || true
         fi
       done

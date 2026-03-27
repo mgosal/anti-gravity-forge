@@ -12,8 +12,6 @@ services:
       # Mount configuration for Iron Tech Forge
       - ./.forge-master:/app/.forge-master:ro
       
-      # Persist the workspaces across restarts
-      - forge_workspaces:/app/forge_workspaces
+      # Persist the workspaces across restarts directly to the host for native log trailing
+      - ./forge_workspaces:/app/forge_workspaces
 
-volumes:
-  forge_workspaces:

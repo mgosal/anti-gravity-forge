@@ -6,8 +6,9 @@ RUN apk add --no-cache bash git curl jq github-cli
 # Set working directory
 WORKDIR /app
 
-# Copy application scripts into the container
+# Copy application scripts and agent rules into the container
 COPY scripts /app/scripts
+COPY .agents /app/.agents
 
 # Ensure scripts are executable
 RUN chmod +x /app/scripts/*.sh
